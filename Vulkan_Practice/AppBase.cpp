@@ -74,3 +74,27 @@ void AppBase::GetPhysicalDevice()
 	_physicalDevice = physicalDevices[0];
 	vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_physicalDeviceMemoryProperties);
 }
+
+
+// グラフィックス用のキューファミリーインデックスを取得する
+uint32_t AppBase::SearchGraphicsQueueFamilyIndex()
+{
+	// 物理デバイスのキューファミリープロパティを取得する
+	uint32_t count = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(_physicalDevice, &count, nullptr);
+	std::vector<VkQueueFamilyProperties> props(count);
+	vkGetPhysicalDeviceQueueFamilyProperties(_physicalDevice, &count, props.data());
+
+	// 取得したキューファミリーのうち、グラフィックス用のキューファミリーのインデックスを取得する
+	uint32_t graphicsQueue = ~0u;
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		if (props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+		{
+			graphicsQueue = i;
+			break;
+		}
+	}
+
+	return graphicsQueue;
+}	

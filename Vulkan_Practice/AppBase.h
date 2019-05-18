@@ -21,6 +21,9 @@ public:
 private:
 	void InitializeInstance(const char* appName);
 	void GetPhysicalDevice();
+	uint32_t  SearchGraphicsQueueFamilyIndex();
+
+
 
 	void CheckResult(VkResult result);
 
