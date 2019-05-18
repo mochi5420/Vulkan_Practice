@@ -25,6 +25,8 @@ private:
 	void CheckResult(VkResult result);
 
 	VkInstance _instance;
+	VkPhysicalDevice _physicalDevice;
+	VkPhysicalDeviceMemoryProperties _physicalDeviceMemoryProperties;
 
 };
 

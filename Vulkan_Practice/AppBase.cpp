@@ -64,5 +64,12 @@ void AppBase::InitializeInstance(const char* appName)
 // 物理デバイスを取得する
 void AppBase::GetPhysicalDevice()
 {
-	
+	uint32_t count = 0;
+
+	vkEnumeratePhysicalDevices(_instance, &count, nullptr);
+	std::vector<VkPhysicalDevice> physicalDevices(count);
+	vkEnumeratePhysicalDevices(_instance, &count, physicalDevices.data());
+
+	_physicalDevice = physicalDevices[0];
+	vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_physicalDeviceMemoryProperties);
 }
