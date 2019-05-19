@@ -29,6 +29,24 @@ void AppBase::Initialize(GLFWwindow* window, const char* appName)
 	// グラフィックス用のキューファミリーインデックスの取得
 	_graphicsQueueFamilyIndex = SearchGraphicsQueueFamilyIndex();
 
+	// 論理デバイスの生成
+	CreateDevice();
+
+	// コマンドプールの作成
+	CreateCommandPool();
+
+	// Surface生成
+	glfwCreateWindowSurface(_instance, window, nullptr, &_surface);
+
+	// Surfaceのフォーマット選択
+	SelectSurfaceFormat(VK_FORMAT_B8G8R8A8_UNORM);
+
+	// Surfaceの能力値取得
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_physicalDevice, _surface, &_surfaceCapabilities);
+
+	// Swapchainがサポートされているか確認
+	VkBool32 isSupported;
+	vkGetPhysicalDeviceSurfaceSupportKHR(_physicalDevice, _graphicsQueueFamilyIndex, _surface, &isSupported);
 
 }
 
@@ -157,7 +175,6 @@ void AppBase::CreateDevice()
 	ci.enabledExtensionCount = uint32_t(extensions.size());
 
 
-
 	// デバイスの生成
 	auto result = vkCreateDevice(_physicalDevice, &ci, nullptr, &_device);
 	CheckResult(result);
@@ -176,4 +193,61 @@ void AppBase::CreateCommandPool()
 	ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	auto result = vkCreateCommandPool(_device, &ci, nullptr, &_commandPool);
 	CheckResult(result);
+}
+
+
+// Surfaceのフォーマットを選択する
+void AppBase::SelectSurfaceFormat(VkFormat format)
+{
+	uint32_t count = 0;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &count, nullptr);
+	std::vector<VkSurfaceFormatKHR> formats(count);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &count, formats.data());
+	
+	for (const auto& f : formats)
+	{
+		if (f.format == format)
+		{
+			_surfaceFormat = f;
+		}
+	}
+}
+
+
+// Swapchainを生成する
+void AppBase::CreateSwapchain(GLFWwindow* window)
+{
+	auto minImageCount = (std::max)(2u, _surfaceCapabilities.minImageCount);
+	auto extent = _surfaceCapabilities.currentExtent;
+	if (extent.width == ~0u)
+	{
+		// 無効な値の場合、ウィンドウサイズを使用する
+		int width, height;
+		glfwGetWindowSize(window, &width, &height);
+		extent.width = uint32_t(width);
+		extent.height = uint32_t(height);
+	}
+
+	uint32_t queueFamilyIndices[] = { _graphicsQueueFamilyIndex };
+
+	VkSwapchainCreateInfoKHR ci{};
+	ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	ci.surface = _surface;
+	ci.minImageCount = minImageCount;
+	ci.imageFormat = _surfaceFormat.format;
+	ci.imageColorSpace = _surfaceFormat.colorSpace;
+	ci.imageExtent = extent;
+	ci.imageArrayLayers = 1;
+	ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	ci.queueFamilyIndexCount = 0;
+	ci.preTransform = _surfaceCapabilities.currentTransform;
+	ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	ci.presentMode = _presentMode;
+	ci.clipped = VK_TRUE;
+	ci.oldSwapchain = VK_NULL_HANDLE;
+
+	auto result = vkCreateSwapchainKHR(_device, &ci, nullptr, &_swapchain);
+	CheckResult(result);
+	_swapchainExtent2D = extent;
 }

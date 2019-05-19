@@ -13,6 +13,7 @@
 #pragma comment(lib, "vulkan-1.lib")
 
 #include <vector>
+#include <algorithm>
 
 class AppBase
 {
@@ -29,9 +30,12 @@ private:
 	uint32_t  SearchGraphicsQueueFamilyIndex();
 	void CreateDevice();
 	void CreateCommandPool();
+	void SelectSurfaceFormat(VkFormat format);
+	void CreateSwapchain(GLFWwindow* window);
 
 
 	void CheckResult(VkResult result);
+
 
 
 	VkInstance _instance;
