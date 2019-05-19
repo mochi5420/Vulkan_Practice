@@ -32,6 +32,10 @@ private:
 	void CreateCommandPool();
 	void SelectSurfaceFormat(VkFormat format);
 	void CreateSwapchain(GLFWwindow* window);
+	void CreateDepthBuffer();
+	uint32_t GetMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps)const;
+
+	void CreateImageViews();
 
 
 	void CheckResult(VkResult result);

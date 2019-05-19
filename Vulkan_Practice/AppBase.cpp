@@ -48,6 +48,12 @@ void AppBase::Initialize(GLFWwindow* window, const char* appName)
 	VkBool32 isSupported;
 	vkGetPhysicalDeviceSurfaceSupportKHR(_physicalDevice, _graphicsQueueFamilyIndex, _surface, &isSupported);
 
+	// Swapchain生成
+	CreateSwapchain(window);
+
+	// depth buffer 生成
+
+
 }
 
 
@@ -250,4 +256,100 @@ void AppBase::CreateSwapchain(GLFWwindow* window)
 	auto result = vkCreateSwapchainKHR(_device, &ci, nullptr, &_swapchain);
 	CheckResult(result);
 	_swapchainExtent2D = extent;
+}
+
+// Depth Bufferを生成する
+void AppBase::CreateDepthBuffer()
+{
+	VkImageCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	ci.imageType = VK_IMAGE_TYPE_2D;
+	ci.format = VK_FORMAT_D32_SFLOAT;
+	ci.extent.width = _swapchainExtent2D.width;
+	ci.extent.height = _swapchainExtent2D.height;
+	ci.extent.depth = 1;
+	ci.mipLevels = 1;
+	ci.arrayLayers = 1;
+	ci.samples = VK_SAMPLE_COUNT_1_BIT;
+	ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+	// VkImage の生成
+	auto result = vkCreateImage(_device, &ci, nullptr, &_depthBuffer);
+	CheckResult(result);
+
+	// メモリの割当とバインド
+	VkMemoryRequirements memoryRequirements;
+	vkGetImageMemoryRequirements(_device, _depthBuffer, &memoryRequirements);
+	VkMemoryAllocateInfo ai{};
+	ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	ai.allocationSize = memoryRequirements.size;
+	ai.memoryTypeIndex = GetMemoryTypeIndex(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	vkAllocateMemory(_device, &ai, nullptr, &_depthBufferMemory);
+	vkBindImageMemory(_device, _depthBuffer, _depthBufferMemory, 0);
+}
+
+// メモリタイプの取得
+uint32_t AppBase::GetMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps)const
+{
+	uint32_t result = ~0u;
+	for (uint32_t i = 0; i < _physicalDeviceMemoryProperties.memoryTypeCount; ++i)
+	{
+		if (requestBits & 1)
+		{
+			const auto& types = _physicalDeviceMemoryProperties.memoryTypes[i];
+			if ((types.propertyFlags & requestProps) == requestProps)
+			{
+				result = i;
+				break;
+			}
+		}
+		requestBits >>= 1;
+	}
+	return result;
+}
+
+void AppBase::CreateImageViews()
+{
+	// swapchain
+	uint32_t imageCount;
+	vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr);
+	_swapchainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _swapchainImages.data());
+	_swapchainImageViews.resize(imageCount);
+	
+	for (uint32_t i = 0; i < imageCount; ++i)
+	{
+		VkImageViewCreateInfo ci{};
+		ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		ci.format = _surfaceFormat.format;
+		ci.components = {
+		  VK_COMPONENT_SWIZZLE_R,
+		  VK_COMPONENT_SWIZZLE_G,
+		  VK_COMPONENT_SWIZZLE_B,
+		  VK_COMPONENT_SWIZZLE_A,
+		};
+		ci.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+		ci.image = _swapchainImages[i];
+		auto result = vkCreateImageView(_device, &ci, nullptr, &_swapchainImageViews[i]);
+		CheckResult(result);
+	}
+
+	// depthbuffer
+	{
+		VkImageViewCreateInfo ci{};
+		ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		ci.format = VK_FORMAT_D32_SFLOAT;
+		ci.components = {
+		  VK_COMPONENT_SWIZZLE_R,
+		  VK_COMPONENT_SWIZZLE_G,
+		  VK_COMPONENT_SWIZZLE_B,
+		  VK_COMPONENT_SWIZZLE_A,
+		};
+		ci.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+		ci.image = _depthBuffer;
+		auto result = vkCreateImageView(_device, &ci, nullptr, &_depthBufferView);
+		CheckResult(result);
+	}
 }
