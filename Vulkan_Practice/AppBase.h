@@ -14,6 +14,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <array>
 
 class AppBase
 {
@@ -36,6 +37,8 @@ private:
 	uint32_t GetMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps)const;
 
 	void CreateImageViews();
+
+	void CreateRenderPass();
 
 
 	void CheckResult(VkResult result);

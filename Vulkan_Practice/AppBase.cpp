@@ -353,3 +353,57 @@ void AppBase::CreateImageViews()
 		CheckResult(result);
 	}
 }
+
+void AppBase::CreateRenderPass()
+{
+	// attachment descriptions
+	std::array<VkAttachmentDescription, 2> attachmentDescriptions;
+	auto& colorTarget = attachmentDescriptions[0];
+	auto& depthTarget = attachmentDescriptions[1];
+
+	colorTarget = VkAttachmentDescription{};
+	colorTarget.format = _surfaceFormat.format;
+	colorTarget.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorTarget.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorTarget.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorTarget.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorTarget.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	colorTarget.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorTarget.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	depthTarget = VkAttachmentDescription{};
+	depthTarget.format = VK_FORMAT_D32_SFLOAT;
+	depthTarget.samples = VK_SAMPLE_COUNT_1_BIT;
+	depthTarget.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthTarget.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	depthTarget.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depthTarget.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthTarget.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depthTarget.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	// attachment references
+	VkAttachmentReference colorReference{}, depthReference{};
+	colorReference.attachment = 0;
+	colorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	depthReference.attachment = 1;
+	depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	// subpass description
+	VkSubpassDescription subpassDesc{};
+	subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpassDesc.colorAttachmentCount = 1;
+	subpassDesc.pColorAttachments = &colorReference;
+	subpassDesc.pDepthStencilAttachment = &depthReference;
+
+	// create render pass 
+	VkRenderPassCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	ci.attachmentCount = uint32_t(attachmentDescriptions.size());
+	ci.pAttachments = attachmentDescriptions.data();
+	ci.subpassCount = 1;
+	ci.pSubpasses = &subpassDesc;
+
+	auto result = vkCreateRenderPass(_device, &ci, nullptr, &_renderPass);
+	CheckResult(result);
+}
