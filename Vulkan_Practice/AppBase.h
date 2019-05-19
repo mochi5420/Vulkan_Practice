@@ -17,19 +17,65 @@
 class AppBase
 {
 public:
+	AppBase();
+	virtual ~AppBase() {}
+	void Initialize(GLFWwindow* window, const char* appName);
+	void Terminate();
 
 private:
+
 	void InitializeInstance(const char* appName);
 	void GetPhysicalDevice();
 	uint32_t  SearchGraphicsQueueFamilyIndex();
-
+	void CreateDevice();
 
 
 	void CheckResult(VkResult result);
 
+
 	VkInstance _instance;
+	VkDevice _device;
+
 	VkPhysicalDevice _physicalDevice;
 	VkPhysicalDeviceMemoryProperties _physicalDeviceMemoryProperties;
+
+	VkSurfaceKHR _surface;
+	VkSurfaceFormatKHR _surfaceFormat;
+	VkSurfaceCapabilitiesKHR _surfaceCapabilities;
+
+	uint32_t _graphicsQueueFamilyIndex;
+	VkQueue _deviceQueue;
+
+	VkCommandPool _commandPool;
+	VkPresentModeKHR _presentMode;
+	VkSwapchainKHR _swapchain;
+	VkExtent2D _swapchainExtent2D;
+	std::vector<VkImage> _swapchainImages;
+	std::vector<VkImageView> _swapchainImageViews;
+
+	VkImage _depthBuffer;
+	VkImageView _depthBufferView;
+	VkDeviceMemory _depthBufferMemory;
+
+	VkRenderPass _renderPass;
+	std::vector<VkFramebuffer> _framebuffers;
+
+	std::vector<VkFence> _fences;
+	VkSemaphore _renderCompletedSemaphore;
+	VkSemaphore _presentCompletedSemaphore;
+
+
+	// デバッグレポート用
+	PFN_vkCreateDebugReportCallbackEXT _createDebugReportCallback;
+	PFN_vkDebugReportMessageEXT _debugReportMessage;
+	PFN_vkDestroyDebugReportCallbackEXT _destroyDebugReportCallback;
+	VkDebugReportCallbackEXT _debugReportCallback;
+
+	std::vector<VkCommandBuffer> _commandBuffers;
+
+
+
+	uint32_t  _imageIndex;
 
 };
 
