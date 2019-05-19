@@ -407,3 +407,28 @@ void AppBase::CreateRenderPass()
 	auto result = vkCreateRenderPass(_device, &ci, nullptr, &_renderPass);
 	CheckResult(result);
 }
+
+void AppBase::CreateFramebuffer()
+{
+	VkFramebufferCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	ci.renderPass = _renderPass;
+	ci.width = _swapchainExtent2D.width;
+	ci.height = _swapchainExtent2D.height;
+	ci.layers = 1;
+
+	_framebuffers.clear();
+	for (auto& v : _swapchainImageViews)
+	{
+		std::array<VkImageView, 2> imageViews;
+		ci.attachmentCount = uint32_t(imageViews.size());
+		ci.pAttachments = imageViews.data();
+		imageViews[0] = v;
+		imageViews[1] = _depthBufferView;
+
+		VkFramebuffer framebuffer;
+		auto result = vkCreateFramebuffer(_device, &ci, nullptr, &framebuffer);
+		CheckResult(result);
+		_framebuffers.push_back(framebuffer);
+	}
+}

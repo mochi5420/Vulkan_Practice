@@ -39,6 +39,7 @@ private:
 	void CreateImageViews();
 
 	void CreateRenderPass();
+	void CreateFramebuffer();
 
 
 	void CheckResult(VkResult result);
