@@ -156,10 +156,24 @@ void AppBase::CreateDevice()
 	ci.ppEnabledExtensionNames = extensions.data();
 	ci.enabledExtensionCount = uint32_t(extensions.size());
 
+
+
 	// デバイスの生成
 	auto result = vkCreateDevice(_physicalDevice, &ci, nullptr, &_device);
 	CheckResult(result);
 
 	// デバイスキューの取得
 	vkGetDeviceQueue(_device, _graphicsQueueFamilyIndex, 0, &_deviceQueue);
+}
+
+
+// コマンドプールの作成
+void AppBase::CreateCommandPool()
+{
+	VkCommandPoolCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	ci.queueFamilyIndex = _graphicsQueueFamilyIndex;
+	ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	auto result = vkCreateCommandPool(_device, &ci, nullptr, &_commandPool);
+	CheckResult(result);
 }

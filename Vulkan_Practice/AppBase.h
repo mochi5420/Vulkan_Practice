@@ -28,6 +28,7 @@ private:
 	void GetPhysicalDevice();
 	uint32_t  SearchGraphicsQueueFamilyIndex();
 	void CreateDevice();
+	void CreateCommandPool();
 
 
 	void CheckResult(VkResult result);
