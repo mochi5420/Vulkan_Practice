@@ -15,6 +15,7 @@
 #include <vector>
 #include <algorithm>
 #include <array>
+#include <sstream>
 
 class AppBase
 {
@@ -43,7 +44,8 @@ private:
 
 
 	void CheckResult(VkResult result);
-
+	
+	void EnableDebugReport();
 
 
 	VkInstance _instance;

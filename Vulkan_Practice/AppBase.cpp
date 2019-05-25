@@ -432,3 +432,41 @@ void AppBase::CreateFramebuffer()
 		_framebuffers.push_back(framebuffer);
 	}
 }
+
+// Debug report 表示用関数
+static VkBool32 VKAPI_CALL DebugReportCallback(
+	VkDebugReportFlagsEXT flags,
+	VkDebugReportObjectTypeEXT objactTypes,
+	uint64_t object,
+	size_t	location,
+	int32_t messageCode,
+	const char* pLayerPrefix,
+	const char* pMessage,
+	void* pUserData)
+{
+	std::stringstream ss;
+	ss << "[" << pLayerPrefix << "] "  << pMessage << std::endl;
+
+	OutputDebugStringA(ss.str().c_str());
+
+	return VK_FALSE;
+}
+
+void AppBase::EnableDebugReport()
+{
+	// 関数ポインタの取得
+	_createDebugReportCallback 
+		= reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(_instance, "vkCreateDebugReportCallbackEXT"));
+	_debugReportMessage 
+		= reinterpret_cast<PFN_vkDebugReportMessageEXT>(vkGetInstanceProcAddr(_instance, "vkDebugReportMessageEXT"));
+	_destroyDebugReportCallback
+		= reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(vkGetInstanceProcAddr(_instance, "vkDestroyDebugReportCallbackEXT"));
+
+	VkDebugReportFlagsEXT flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
+
+	VkDebugReportCallbackCreateInfoEXT ci{};
+	ci.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+	ci.flags = flags;
+	ci.pfnCallback = &DebugReportCallback;
+	_createDebugReportCallback(_instance, &ci, nullptr, &_debugReportCallback);
+}
