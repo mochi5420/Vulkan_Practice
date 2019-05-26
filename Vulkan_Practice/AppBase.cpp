@@ -76,12 +76,12 @@ void AppBase::InitializeInstance(const char* appName)
 	{
 		uint32_t count = 0;
 		vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
-		props.resize(count);
+		props.reserve(count);
 		vkEnumerateInstanceExtensionProperties(nullptr, &count, props.data());
 
 		for (const auto& v : props)
 		{
-			extensions.push_back(v.extensionName);
+			extensions.emplace_back(v.extensionName);
 		}
 	}
 
@@ -163,12 +163,12 @@ void AppBase::CreateDevice()
 	{
 		uint32_t count = 0;
 		vkEnumerateDeviceExtensionProperties(_physicalDevice, nullptr, &count, nullptr);
-		props.resize(count);
+		props.reserve(count);
 		vkEnumerateDeviceExtensionProperties(_physicalDevice, nullptr, &count, props.data());
 
 		for (const auto& v : props)
 		{
-			extensions.push_back(v.extensionName);
+			extensions.emplace_back(v.extensionName);
 		}
 	}
 
@@ -313,9 +313,9 @@ void AppBase::CreateImageViews()
 	// swapchain
 	uint32_t imageCount;
 	vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr);
-	_swapchainImages.resize(imageCount);
+	_swapchainImages.reserve(imageCount);
 	vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _swapchainImages.data());
-	_swapchainImageViews.resize(imageCount);
+	_swapchainImageViews.reserve(imageCount);
 	
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
@@ -429,9 +429,39 @@ void AppBase::CreateFramebuffer()
 		VkFramebuffer framebuffer;
 		auto result = vkCreateFramebuffer(_device, &ci, nullptr, &framebuffer);
 		CheckResult(result);
-		_framebuffers.push_back(framebuffer);
+		_framebuffers.emplace_back(framebuffer);
 	}
 }
+
+void AppBase::AllocateCommandBuffers()
+{
+	VkCommandBufferAllocateInfo ai{};
+	ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	ai.commandPool = _commandPool;
+	ai.commandBufferCount = uint32_t(_swapchainImageViews.size());
+	ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+	_commandBuffers.reserve(ai.commandBufferCount);
+	auto result = vkAllocateCommandBuffers(_device, &ai, _commandBuffers.data());
+	CheckResult(result);
+}
+
+void AppBase::CreateFence()
+{
+	VkFenceCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	_fences.reserve(_commandBuffers.size());
+	for (auto& v : _fences)
+	{
+		auto result = vkCreateFence(_device, &ci, nullptr, &v);
+		CheckResult(result);
+	}
+}
+
+
+
 
 // Debug report •\Ž¦—pŠÖ”
 static VkBool32 VKAPI_CALL DebugReportCallback(

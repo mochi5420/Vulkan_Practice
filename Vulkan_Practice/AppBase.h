@@ -42,6 +42,9 @@ private:
 	void CreateRenderPass();
 	void CreateFramebuffer();
 
+	void AllocateCommandBuffers();
+	void CreateFence();
+
 
 	void CheckResult(VkResult result);
 	
