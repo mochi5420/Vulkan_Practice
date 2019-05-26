@@ -65,12 +65,16 @@ void AppBase::Initialize(GLFWwindow* window, const char* appName)
 	// レンダーパスの生成
 	CreateRenderPass();
 
+	// Framebufferの生成
 	CreateFramebuffer();
 
+	// CommandBufferの割り当て
 	AllocateCommandBuffers();
 
-	CreateFence();
+	// fence生成
+	CreateFences();
 
+	// セマフォ生成
 	CreateSemaphores();
 }
 
@@ -252,7 +256,7 @@ void AppBase::CreateSwapchain(GLFWwindow* window)
 		extent.height = uint32_t(height);
 	}
 
-	uint32_t queueFamilyIndices[] = { _graphicsQueueFamilyIndex };
+	//uint32_t queueFamilyIndices[] = { _graphicsQueueFamilyIndex };
 
 	VkSwapchainCreateInfoKHR ci{};
 	ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -326,6 +330,7 @@ uint32_t AppBase::GetMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags
 	return result;
 }
 
+// Image view の生成
 void AppBase::CreateImageViews()
 {
 	// swapchain
@@ -372,6 +377,7 @@ void AppBase::CreateImageViews()
 	}
 }
 
+// render pass の生成
 void AppBase::CreateRenderPass()
 {
 	// attachment descriptions
@@ -426,6 +432,7 @@ void AppBase::CreateRenderPass()
 	CheckResult(result);
 }
 
+// framebufferの生成
 void AppBase::CreateFramebuffer()
 {
 	VkFramebufferCreateInfo ci{};
@@ -451,6 +458,7 @@ void AppBase::CreateFramebuffer()
 	}
 }
 
+// command buffer の割り当て
 void AppBase::AllocateCommandBuffers()
 {
 	VkCommandBufferAllocateInfo ai{};
@@ -464,7 +472,8 @@ void AppBase::AllocateCommandBuffers()
 	CheckResult(result);
 }
 
-void AppBase::CreateFence()
+// fenceの生成
+void AppBase::CreateFences()
 {
 	VkFenceCreateInfo ci{};
 	ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -478,6 +487,7 @@ void AppBase::CreateFence()
 	}
 }
 
+// セマフォの生成
 void AppBase::CreateSemaphores()
 {
 	VkSemaphoreCreateInfo ci{};
@@ -486,6 +496,7 @@ void AppBase::CreateSemaphores()
 	vkCreateSemaphore(_device, &ci, nullptr, &_presentCompletedSemaphore);
 }
 
+// 描画を実行する関数
 void AppBase::Render()
 {
 	uint32_t nextImageIndex = 0;
@@ -493,13 +504,22 @@ void AppBase::Render()
 	auto commandFence = _fences[nextImageIndex];
 	vkWaitForFences(_device, 1, &commandFence, VK_TRUE, UINT64_MAX);
 
-	// クリア値
+	// クリア値の設定
 	std::array<VkClearValue, 2> clearValue = {
-	  { {0.5f, 0.25f, 0.25f, 0.0f}, // Clear color
-		{1.0f, 0 } // Clear Depth
+	  { {0.5f, 0.25f, 0.25f, 1.0f}, // color
+		{1.0f, 0 } // depth
 	  }
 	};
 
+
+	// コマンドバッファへの書き込み開始
+	VkCommandBufferBeginInfo commandBI{};
+	commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	auto& command = _commandBuffers[nextImageIndex];
+
+	vkBeginCommandBuffer(command, &commandBI);
+
+	// レンダーパスの開始
 	VkRenderPassBeginInfo renderPassBI{};
 	renderPassBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassBI.renderPass = _renderPass;
@@ -508,25 +528,22 @@ void AppBase::Render()
 	renderPassBI.renderArea.extent = _swapchainExtent2D;
 	renderPassBI.pClearValues = clearValue.data();
 	renderPassBI.clearValueCount = uint32_t(clearValue.size());
-
-	// コマンドバッファ・レンダーパス開始
-	VkCommandBufferBeginInfo commandBI{};
-	commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	auto& command = _commandBuffers[nextImageIndex];
-
-	vkBeginCommandBuffer(command, &commandBI);
+	
 	vkCmdBeginRenderPass(command, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
 
-	_imageIndex = nextImageIndex;
-	CreateCommand(command);
+	//_imageIndex = nextImageIndex;
+	//CreateCommand(command);
 
-	// コマンド・レンダーパス終了
+	// レンダーパスの終了
 	vkCmdEndRenderPass(command);
+
+	// コマンドバッファへの書き込み終了
 	vkEndCommandBuffer(command);
 
-	// コマンドを実行（送信)
-	VkSubmitInfo submitInfo{};
+	// コマンドをデバイスキューに送信
 	VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &command;
@@ -538,7 +555,7 @@ void AppBase::Render()
 	vkResetFences(_device, 1, &commandFence);
 	vkQueueSubmit(_deviceQueue, 1, &submitInfo, commandFence);
 
-	// Present 処理
+	// 結果を画面に反映させる処理
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.swapchainCount = 1;
@@ -549,52 +566,77 @@ void AppBase::Render()
 	vkQueuePresentKHR(_deviceQueue, &presentInfo);
 }
 
+// 終了時の処理
 void AppBase::Terminate()
 {
 	vkDeviceWaitIdle(_device);
 
-	Clean();
+	//Clean();
 
+	// コマンドバッファの開放
 	vkFreeCommandBuffers(_device, _commandPool, uint32_t(_commandBuffers.size()), _commandBuffers.data());
 	_commandBuffers.clear();
 
+	// レンダーパスの破棄
 	vkDestroyRenderPass(_device, _renderPass, nullptr);
+	
+	// フレームバッファの破棄
 	for (auto& v : _framebuffers)
 	{
 		vkDestroyFramebuffer(_device, v, nullptr);
 	}
 	_framebuffers.clear();
 
+	// デバイスメモリの開放
 	vkFreeMemory(_device, _depthBufferMemory, nullptr);
+	
+	// Imageの破棄
 	vkDestroyImage(_device, _depthBuffer, nullptr);
-	vkDestroyImageView(_device, _depthBufferView, nullptr);
 
+	// ImageViewの破棄
+	vkDestroyImageView(_device, _depthBufferView, nullptr);
 	for (auto& v : _swapchainImageViews)
 	{
 		vkDestroyImageView(_device, v, nullptr);
 	}
 	_swapchainImages.clear();
+
+	// swapchainの破棄
 	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 
+	// fenceの破棄
 	for (auto& v : _fences)
 	{
 		vkDestroyFence(_device, v, nullptr);
 	}
 	_fences.clear();
+
+	// セマフォの破棄
 	vkDestroySemaphore(_device, _presentCompletedSemaphore, nullptr);
 	vkDestroySemaphore(_device, _renderCompletedSemaphore, nullptr);
 
+	// コマンドプールの破棄
 	vkDestroyCommandPool(_device, _commandPool, nullptr);
 
+	// Surfaceの破棄
 	vkDestroySurfaceKHR(_instance, _surface, nullptr);
+
+	// デバイスの破棄
 	vkDestroyDevice(_device, nullptr);
+
 #ifdef _DEBUG
 	DisableDebugReport();
 #endif
+
+	// インスタンスの破棄
 	vkDestroyInstance(_instance, nullptr);
 }
 
 
+
+//---------------------------------------------------
+//	デバッグ用機能
+//---------------------------------------------------
 // Debug report 表示用関数
 static VkBool32 VKAPI_CALL DebugReportCallback(
 	VkDebugReportFlagsEXT flags,

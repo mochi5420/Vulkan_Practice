@@ -1,18 +1,17 @@
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 #include "AppBase.h"
 
-const int windowWidth = 1280;
-const int windowHeight = 720;
-const char* appTitle = "VulkanPractice";
+static const int windowWidth = 1280;
+static const int windowHeight = 720;
+static const char* const appTitle = "Vulkan Practice";
 
 
 int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
 	// 使用しない変数の警告を回避
+	UNREFERENCED_PARAMETER(hInstance);
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
+	UNREFERENCED_PARAMETER(nCmdShow);
 
 	// glfwの設定
 	glfwInit();
@@ -24,6 +23,7 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 	AppBase app;
 	app.Initialize(window, appTitle);
 
+	// メインループ
 	while (glfwWindowShouldClose(window) == GLFW_FALSE)
 	{
 		// マウス操作などのイベントを取り出し記録する
