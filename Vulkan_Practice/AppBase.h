@@ -1,6 +1,4 @@
 #pragma once
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
@@ -28,6 +26,8 @@ public:
 	void Render();
 
 	virtual void CreateCommand(VkCommandBuffer command) {}
+	virtual void Prepare() {}
+	virtual void Clean() {}
 
 private:
 
@@ -48,11 +48,12 @@ private:
 
 	void AllocateCommandBuffers();
 	void CreateFence();
-
+	void CreateSemaphores();
 
 	void CheckResult(VkResult result);
 	
 	void EnableDebugReport();
+	void DisableDebugReport();
 
 
 	VkInstance _instance;

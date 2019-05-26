@@ -29,6 +29,11 @@ void AppBase::Initialize(GLFWwindow* window, const char* appName)
 	// グラフィックス用のキューファミリーインデックスの取得
 	_graphicsQueueFamilyIndex = SearchGraphicsQueueFamilyIndex();
 
+#ifdef _DEBUG
+	// デバッグレポート関数有効化
+	EnableDebugReport();
+#endif
+
 	// 論理デバイスの生成
 	CreateDevice();
 
@@ -52,8 +57,21 @@ void AppBase::Initialize(GLFWwindow* window, const char* appName)
 	CreateSwapchain(window);
 
 	// depth buffer 生成
+	CreateDepthBuffer();
 
+	// 各ImageViewの生成
+	CreateImageViews();
 
+	// レンダーパスの生成
+	CreateRenderPass();
+
+	CreateFramebuffer();
+
+	AllocateCommandBuffers();
+
+	CreateFence();
+
+	CreateSemaphores();
 }
 
 
@@ -76,7 +94,7 @@ void AppBase::InitializeInstance(const char* appName)
 	{
 		uint32_t count = 0;
 		vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
-		props.reserve(count);
+		props.resize(count);
 		vkEnumerateInstanceExtensionProperties(nullptr, &count, props.data());
 
 		for (const auto& v : props)
@@ -163,7 +181,7 @@ void AppBase::CreateDevice()
 	{
 		uint32_t count = 0;
 		vkEnumerateDeviceExtensionProperties(_physicalDevice, nullptr, &count, nullptr);
-		props.reserve(count);
+		props.resize(count);
 		vkEnumerateDeviceExtensionProperties(_physicalDevice, nullptr, &count, props.data());
 
 		for (const auto& v : props)
@@ -313,9 +331,9 @@ void AppBase::CreateImageViews()
 	// swapchain
 	uint32_t imageCount;
 	vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, nullptr);
-	_swapchainImages.reserve(imageCount);
+	_swapchainImages.resize(imageCount);
 	vkGetSwapchainImagesKHR(_device, _swapchain, &imageCount, _swapchainImages.data());
-	_swapchainImageViews.reserve(imageCount);
+	_swapchainImageViews.resize(imageCount);
 	
 	for (uint32_t i = 0; i < imageCount; ++i)
 	{
@@ -441,7 +459,7 @@ void AppBase::AllocateCommandBuffers()
 	ai.commandBufferCount = uint32_t(_swapchainImageViews.size());
 	ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-	_commandBuffers.reserve(ai.commandBufferCount);
+	_commandBuffers.resize(ai.commandBufferCount);
 	auto result = vkAllocateCommandBuffers(_device, &ai, _commandBuffers.data());
 	CheckResult(result);
 }
@@ -452,12 +470,20 @@ void AppBase::CreateFence()
 	ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	_fences.reserve(_commandBuffers.size());
+	_fences.resize(_commandBuffers.size());
 	for (auto& v : _fences)
 	{
 		auto result = vkCreateFence(_device, &ci, nullptr, &v);
 		CheckResult(result);
 	}
+}
+
+void AppBase::CreateSemaphores()
+{
+	VkSemaphoreCreateInfo ci{};
+	ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	vkCreateSemaphore(_device, &ci, nullptr, &_renderCompletedSemaphore);
+	vkCreateSemaphore(_device, &ci, nullptr, &_presentCompletedSemaphore);
 }
 
 void AppBase::Render()
@@ -523,6 +549,50 @@ void AppBase::Render()
 	vkQueuePresentKHR(_deviceQueue, &presentInfo);
 }
 
+void AppBase::Terminate()
+{
+	vkDeviceWaitIdle(_device);
+
+	Clean();
+
+	vkFreeCommandBuffers(_device, _commandPool, uint32_t(_commandBuffers.size()), _commandBuffers.data());
+	_commandBuffers.clear();
+
+	vkDestroyRenderPass(_device, _renderPass, nullptr);
+	for (auto& v : _framebuffers)
+	{
+		vkDestroyFramebuffer(_device, v, nullptr);
+	}
+	_framebuffers.clear();
+
+	vkFreeMemory(_device, _depthBufferMemory, nullptr);
+	vkDestroyImage(_device, _depthBuffer, nullptr);
+	vkDestroyImageView(_device, _depthBufferView, nullptr);
+
+	for (auto& v : _swapchainImageViews)
+	{
+		vkDestroyImageView(_device, v, nullptr);
+	}
+	_swapchainImages.clear();
+	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
+
+	for (auto& v : _fences)
+	{
+		vkDestroyFence(_device, v, nullptr);
+	}
+	_fences.clear();
+	vkDestroySemaphore(_device, _presentCompletedSemaphore, nullptr);
+	vkDestroySemaphore(_device, _renderCompletedSemaphore, nullptr);
+
+	vkDestroyCommandPool(_device, _commandPool, nullptr);
+
+	vkDestroySurfaceKHR(_instance, _surface, nullptr);
+	vkDestroyDevice(_device, nullptr);
+#ifdef _DEBUG
+	DisableDebugReport();
+#endif
+	vkDestroyInstance(_instance, nullptr);
+}
 
 
 // Debug report 表示用関数
@@ -561,4 +631,12 @@ void AppBase::EnableDebugReport()
 	ci.flags = flags;
 	ci.pfnCallback = &DebugReportCallback;
 	_createDebugReportCallback(_instance, &ci, nullptr, &_debugReportCallback);
+}
+
+void AppBase::DisableDebugReport()
+{
+	if (_destroyDebugReportCallback)
+	{
+		_destroyDebugReportCallback(_instance, _debugReportCallback, nullptr);
+	}
 }
