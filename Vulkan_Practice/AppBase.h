@@ -25,6 +25,10 @@ public:
 	void Initialize(GLFWwindow* window, const char* appName);
 	void Terminate();
 
+	void Render();
+
+	virtual void CreateCommand(VkCommandBuffer command) {}
+
 private:
 
 	void InitializeInstance(const char* appName);

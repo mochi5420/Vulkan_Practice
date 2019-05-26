@@ -460,6 +460,68 @@ void AppBase::CreateFence()
 	}
 }
 
+void AppBase::Render()
+{
+	uint32_t nextImageIndex = 0;
+	vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX, _presentCompletedSemaphore, VK_NULL_HANDLE, &nextImageIndex);
+	auto commandFence = _fences[nextImageIndex];
+	vkWaitForFences(_device, 1, &commandFence, VK_TRUE, UINT64_MAX);
+
+	// クリア値
+	std::array<VkClearValue, 2> clearValue = {
+	  { {0.5f, 0.25f, 0.25f, 0.0f}, // Clear color
+		{1.0f, 0 } // Clear Depth
+	  }
+	};
+
+	VkRenderPassBeginInfo renderPassBI{};
+	renderPassBI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassBI.renderPass = _renderPass;
+	renderPassBI.framebuffer = _framebuffers[nextImageIndex];
+	renderPassBI.renderArea.offset = VkOffset2D{ 0, 0 };
+	renderPassBI.renderArea.extent = _swapchainExtent2D;
+	renderPassBI.pClearValues = clearValue.data();
+	renderPassBI.clearValueCount = uint32_t(clearValue.size());
+
+	// コマンドバッファ・レンダーパス開始
+	VkCommandBufferBeginInfo commandBI{};
+	commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	auto& command = _commandBuffers[nextImageIndex];
+
+	vkBeginCommandBuffer(command, &commandBI);
+	vkCmdBeginRenderPass(command, &renderPassBI, VK_SUBPASS_CONTENTS_INLINE);
+
+	_imageIndex = nextImageIndex;
+	CreateCommand(command);
+
+	// コマンド・レンダーパス終了
+	vkCmdEndRenderPass(command);
+	vkEndCommandBuffer(command);
+
+	// コマンドを実行（送信)
+	VkSubmitInfo submitInfo{};
+	VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &command;
+	submitInfo.pWaitDstStageMask = &waitStageMask;
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = &_presentCompletedSemaphore;
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = &_renderCompletedSemaphore;
+	vkResetFences(_device, 1, &commandFence);
+	vkQueueSubmit(_deviceQueue, 1, &submitInfo, commandFence);
+
+	// Present 処理
+	VkPresentInfoKHR presentInfo{};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = &_swapchain;
+	presentInfo.pImageIndices = &nextImageIndex;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = &_renderCompletedSemaphore;
+	vkQueuePresentKHR(_deviceQueue, &presentInfo);
+}
 
 
 
